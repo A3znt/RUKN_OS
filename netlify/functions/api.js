@@ -10,13 +10,14 @@ exports.handler=async(event)=>{
   let data={}; try { data=event.body?JSON.parse(event.body):{}; } catch {return json(400,{error:'JSON غير صالح'});}
   try {
     if(method==='GET'){
-      const [orders,inventory,workshops,drivers]=await Promise.all([
+      const [orders,inventory,workshops,drivers,products]=await Promise.all([
         sql`SELECT o.id,o.order_number,o.status,o.notes,o.delivery_fee,o.workshop_id,o.driver_id,o.created_at,c.name,c.phone,c.city,c.address,COALESCE(json_agg(json_build_object('id',i.id,'product',i.product_name,'color',i.color,'quantity',i.quantity,'price',i.unit_price,'notes',i.notes)) FILTER (WHERE i.id IS NOT NULL),'[]'::json) AS items FROM orders o LEFT JOIN customers c ON c.id=o.customer_id LEFT JOIN order_items i ON i.order_id=o.id GROUP BY o.id,c.id ORDER BY o.created_at DESC,o.id DESC`,
         sql`SELECT id,product_name,color,available,reserved,updated_at FROM inventory ORDER BY product_name,color`,
         sql`SELECT id,name,phone FROM workshops ORDER BY name`,
-        sql`SELECT id,name,phone FROM drivers ORDER BY name`
+        sql`SELECT id,name,phone FROM drivers ORDER BY name`,
+        sql`SELECT id,name,variant,photo_url,active FROM products WHERE active=true ORDER BY name,variant`
       ]);
-      return json(200,{orders,inventory,workshops,drivers});
+      return json(200,{orders,inventory,workshops,drivers,products});
     }
     if(method!=='POST') return json(405,{error:'طريقة غير مدعومة'});
     if(data.action==='order'){
@@ -60,6 +61,14 @@ exports.handler=async(event)=>{
       if(found.length)await sql`UPDATE inventory SET available=${available},reserved=${reserved},updated_at=now() WHERE id=${found[0].id}`;
       else await sql`INSERT INTO inventory(product_name,color,available,reserved) VALUES(${product},${color},${available},${reserved})`;
       return json(200,{ok:true});
+    }
+    if(data.action==='product'){
+      const name=String(data.name||'').trim(),variant=String(data.variant||'').trim();
+      if(!name||!variant||name.length>120||variant.length>120)return json(400,{error:'اسم الصنف واللون أو النوع مطلوبان'});
+      const exists=await sql`SELECT id FROM products WHERE name=${name} AND variant=${variant} LIMIT 1`;
+      if(exists.length){await sql`UPDATE products SET active=true WHERE id=${exists[0].id}`;return json(200,{ok:true,id:exists[0].id});}
+      const rows=await sql`INSERT INTO products(name,variant,active) VALUES(${name},${variant},true) RETURNING id`;
+      return json(200,{ok:true,id:rows[0].id});
     }
     if(data.action==='contact'){
       const kind=data.kind==='driver'?'driver':'workshop',name=String(data.name||'').trim(),phone=String(data.phone||'').trim();
