@@ -1,0 +1,11 @@
+{
+  "name": "rokn-os",
+  "private": true,
+  "version": "0.2.0",
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.0"
+  },
+  "scripts": {
+    "start": "netlify dev"
+  }
+}
