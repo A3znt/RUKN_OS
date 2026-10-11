@@ -1,0 +1,5 @@
+ALTER TABLE products ADD COLUMN IF NOT EXISTS price numeric(12,2), ADD COLUMN IF NOT EXISTS size text NOT NULL DEFAULT '', ADD COLUMN IF NOT EXISTS description text NOT NULL DEFAULT '', ADD COLUMN IF NOT EXISTS stock_variant text, ADD COLUMN IF NOT EXISTS lead_days integer;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS revision integer NOT NULL DEFAULT 0, ADD COLUMN IF NOT EXISTS stock_allocations jsonb NOT NULL DEFAULT '[]', ADD COLUMN IF NOT EXISTS request_id text, ADD COLUMN IF NOT EXISTS settled_amount numeric(12,2) NOT NULL DEFAULT 0;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS stock_color text;
+CREATE UNIQUE INDEX IF NOT EXISTS orders_request_id_unique ON orders(request_id) WHERE request_id IS NOT NULL;
+UPDATE products SET price=CASE WHEN variant LIKE '%بدون%' THEN 950 ELSE 1150 END, size='120 × 90 × 30 سم', description='مراية دائرية قطر 85 سم بدون إطار، LED دافئ. الصورة مرجعية؛ راجع شكل المراية عند التأكيد.', stock_variant=CASE WHEN variant LIKE '%خشبي%' THEN 'خشبي' ELSE 'رخامي' END, photo_url=CASE WHEN variant LIKE '%خشبي%' THEN '/products/console-wood.webp' ELSE '/products/console-marble.webp' END WHERE name='كونسول 120 سم' AND price IS NULL;

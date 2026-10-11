@@ -1,0 +1,5 @@
+const fs=require('node:fs');const {PGlite}=require('@electric-sql/pglite');
+(async()=>{const db=new PGlite();await db.exec(fs.readFileSync('tests/fixture.sql','utf8'));await db.exec(fs.readFileSync('migrations/001-unified.sql','utf8'));
+let chain=Promise.resolve();class Pool{async connect(){let unlock;const next=new Promise(r=>unlock=r),old=chain;chain=next;await old;return {async query(sql,args){if(sql.includes('pg_advisory_xact_lock'))return {rows:[],rowCount:1};const r=await db.query(sql,args);return {...r,rowCount:r.affectedRows??r.rows.length}},release(){unlock()}}}async end(){}}
+const modulePath=require.resolve('@neondatabase/serverless');require.cache[modulePath]={id:modulePath,filename:modulePath,loaded:true,exports:{Pool,neonConfig:{}}};
+const read=fs.readFileSync;fs.readFileSync=function(path,...args){if(path===0)return JSON.stringify({database:'postgresql://local-test'});return read.call(fs,path,...args)};require('./integration.cjs');})().catch(e=>{console.error(e);process.exitCode=1});
